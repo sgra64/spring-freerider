@@ -26,11 +26,19 @@ public class FreeriderRunner implements CommandLineRunner {
     @Value("${spring.application.name}")
     private String programName;
 
+    private final String programNameFinal;
+
     /**
-     * Constructor executes when the Spring runtime system creates the Application Bean.
+     * Constructor-injected property value.
      */
-    FreeriderRunner() {
-        log.info("-<1>--> FreeriderRunner constructor called");
+    FreeriderRunner(
+        @Value("${spring.application.name}") String applicationName
+    ) {
+        this.programNameFinal = applicationName;
+        // 
+        // 'programName' not initialized yet
+        log.info(String.format("-<1>--> FreeriderRunner constructor, programName=%s", programName));
+        log.info(String.format("-<1>--> FreeriderRunner constructor, programNameFinal=%s", programNameFinal));
     }
 
 
@@ -39,13 +47,6 @@ public class FreeriderRunner implements CommandLineRunner {
         /*
          * print program name as welcome message
          */
-        log.info(String.format("-<2>--> FreeriderRunner.run() for %s", programName));
-
-        // Trace > Debug > Info > Warn > Error > Fatal > Off
-        log.trace("trace log message");
-        log.debug("debug log message");
-        log.info("info log message");
-        log.warn("warning log message");
-        log.error("error log message");
+        log.info(String.format("-<2>--> FreeriderRunner.run(), programName=%s", programName));
     }
 }
