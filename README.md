@@ -1,53 +1,46 @@
-# 5. *Logging*
+# 6. *Properties*
 
-[*Logging*](https://last9.io/blog/a-guide-to-spring-boot-logging/)
-([*Baeldung*](https://www.baeldung.com/spring-boot-logging))
-is the recording of text messages produced during program execution.
+*Spring Boot* supports *application configuration* to allow changes in program
+behavior without requiring to compile source code, which may not be available
+in the deployment environment, e.g. at a customer site.
 
-*Logging* in software systems has many reasons:
+*Application configuration* delegates information to *"configuration files"*,
+which are text files that can be adjusted by an editor.
+The program reads *"configuration files"* and stores the information in an
+internal structure, in Java often by class
+[*Properties*](https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html).
 
-- record access to components and data for compliance reasons (*who* accessed
-    *what* and *when*),
+In contrast to Java, *Spring Boot* automatically reads configuration files from
+path `src/main/resources` and makes information available in the program.
 
-- record program execution for later investigation, e.g. to find out why a
-    program crashed or behaved abnormally,
+Configuration files are passed to compiled files
+`target/classes/application.properties`
+such that they are available at run-time on the CLASSPATH (`target/classes` is
+in CLASSPATH).
 
-- record suplemental information and early warnings during program execution.
+The most prominent file *Spring Boot* uses for configuration is file:
+[*application.properties*](src/main/resources/application.properties)
 
-Printing lines to `<stdout>` with `System.out.println()` is bad practice in
-programs and must be removed for product versions because programs in
-production environments have no console attached (e.g. when executing in a
-container).
+```properties
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Spring Boot supports configurability in the 'application-properties' file.
+# Settings can change the application behavior without requiring compilation.
+# 
+# https://docs.spring.io/spring-boot/appendix/application-properties/index.html
+# 
+# 
+spring.application.name="Freerider Reservation System"
 
-*Logging* provides flexible infrastructure to
+# output destination of 'Spring' banner message: off, console, log
+spring.main.banner-mode=console
+```
 
-1. *Collect* information (record log lines), categorized by
+*Spring Boot* uses a hierarchical (tree) structure of names connected by dots.
 
-    - `trace` -- for low-priority messages,
+Alter property: `spring.main.banner-mode` from `console` to `off` and re-run
+the program. This change will turn off printing the Spring banner.
 
-    - `debug` -- to assist debugging,
-
-    - `info ` -- to log general information,
-
-    - `warn ` -- for warn messages for acceptable, but unusual conditions,
-        e.g. empty names
-
-    - `error` -- record error conditions that cause program termination.
-
-1. *Filter* log information by:
-
-    - source (logger-instance),
-
-    - priority (trace, debug, info, warn, error).
-
-1. *Formatting* information to log (selection, format of relevant information).
-
-1. *Appenders* define the destination of log messages in log files (e.g. by a
-[*rolling file appender*](https://www.codejava.net/frameworks/spring-boot/logback-rolling-files-example)),
-into a databases or over the network.
-
-
-The code shows the creation of a logger and the collection of log lines:
+In the program, property values can be accessed by property variables:
 
 ```java
 package freerider.application;
@@ -67,22 +60,30 @@ import org.springframework.stereotype.Component;
 public class FreeriderRunner implements CommandLineRunner {
 
     /**
-     * Any String can be used to create and identify a new logger instance.
-     * It is common to use the fully qualified class name.
+     * Any String can be used to create or identify a new logger instance.
+     * A common technique has become to use the fully qualified class name.
      */
     private static final Logger log = LoggerFactory.getLogger(FreeriderRunner.class.getName());
 
     /*
-     * Initialized with value of 'spring.application.name' property
+     * Access value of 'spring.application.name' property
      */
     @Value("${spring.application.name}")
     private String programName;
 
+    private final String programNameFinal;
+
     /**
-     * Constructor executes when the Spring creates the bean object.
+     * Constructor-injected property value.
      */
-    FreeriderRunner() {
-        log.info("-<1>--> FreeriderRunner constructor called");
+    FreeriderRunner(
+        @Value("${spring.application.name}") String applicationName
+    ) {
+        this.programNameFinal = applicationName;
+        // 
+        // 'programName' not initialized yet
+        log.info(String.format("-<1>--> FreeriderRunner constructor, programName=%s", programName));
+        log.info(String.format("-<1>--> FreeriderRunner constructor, programNameFinal=%s", programNameFinal));
     }
 
 
@@ -91,87 +92,15 @@ public class FreeriderRunner implements CommandLineRunner {
         /*
          * print program name as welcome message
          */
-        log.info(String.format("-<2>--> FreeriderRunner.run() for %s", programName));
-
-        // Trace > Debug > Info > Warn > Error > Fatal > Off
-        log.trace("trace log message");
-        log.debug("debug log message");
-        log.info("info log message");
-        log.warn("warning log message");
-        log.error("error log message");
+        log.info(String.format("-<2>--> FreeriderRunner.run(), programName=%s", programName));
     }
 }
 ```
 
-
-
-*Logging* can negatively impact program performance.
-
-It is important that logging-logic (*Collection*, *Filtering*, *Formatting*,
-*Appending*) is not hard-coded in programs, but is configurable.
-
-*Spring Boot* uses the
-[*LogBack*](https://www.codejava.net/frameworks/spring-boot/logback-rolling-files-example)
-framework and can be configured in special files *"logback.xml"* or
-*"logback-spring.xml"*.
-
-<img src="https://www.codejava.net/images/articles/frameworks/springboot/logging/spring_boot_log_architecture.png" width="480"/>
-
-
-Simplified configuration can also be achieved in file `"application.properties"`:
-
-```properties
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Spring Boot supports configurability in the 'application-properties' file.
-# Settings can change the application behavior without requiring compilation.
-# 
-# https://docs.spring.io/spring-boot/appendix/application-properties/index.html
-# 
-# 
-spring.application.name="Freerider Reservation System"
-
-# output destination of 'Spring' banner message: off, console, log
-spring.main.banner-mode=console
-
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Logging section:
-# 
-# Spring Boot uses the 'Logback' implementation for logging. A separate file
-# `logback-spring.xml` provides advanced configuration. Alternatively, 'Log4J2'
-# can be used.
-#  - logging.config=classpath:log4j2.xml
-#  - logging.config=classpath:logback-spring.xml
-# 
-# Log Levels:
-# - Fatal, Error are used for non-recoverable error.
-# - Warn    is used for recoverable error.
-# - Info    is used for audit purpose.
-# - Debug   is used for investigation.
-# - Trace   is used for detailed investigation.
-# Log Precedence, most > least:
-# - Trace > Debug > Info > Warn > Error > Fatal > Off
-# 
-logging.level.org.springframework=off
-logging.level.freerider.reservation.application=info
-
-logging.threshold.console=info
-logging.threshold.file=info
-
-# File Appender
-logging.file.name=logs/app.log
-
-# Format log lines, use time(ms) for console log and date+time(s) for file log
-logging.pattern.console=[%-5level] [%d{HH:mm:ss:SSS}, %-48logger{46}] - %msg%n
-logging.pattern.file=[%-5level] [%d{yyyy-MM-dd HH:mm:ss}, %-48logger{46}] - %msg%n
+Output:
 
 ```
 
-When the program executes, the new format of log line can be noticed.
-
-Furthermore, there are no more *System.out.print()* lines:
-
-```
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
 ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
@@ -181,12 +110,10 @@ Furthermore, there are no more *System.out.print()* lines:
 
  :: Spring Boot ::                (v3.5.0)
 
-[INFO ] [23:20:17:778, freerider.application.Application               ] - Starting Application using Java 21 with PID 19296 (C:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider\target\classes started by svgr2 in c:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider)
-[INFO ] [23:20:17:778, freerider.application.Application               ] - No active profile set, falling back to 1 default profile: "default"
-[INFO ] [23:20:18:759, freerider.application.FreeriderRunner           ] - -<1>--> FreeriderRunner constructor called
-[INFO ] [23:20:18:936, freerider.application.Application               ] - Started Application in 2.152 seconds (process running for 2.642)
-[INFO ] [23:20:18:953, freerider.application.FreeriderRunner           ] - -<2>--> FreeriderRunner.run() in "Freerider Reservation System"
-[INFO ] [23:20:18:962, freerider.application.FreeriderRunner           ] - info log message
-[WARN ] [23:20:18:963, freerider.application.FreeriderRunner           ] - warning log message
-[ERROR] [23:20:18:963, freerider.application.FreeriderRunner           ] - error log message
+[...] - Starting Application using Java 21 with PID 11992 (C:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider\target\classes started by svgr2 in c:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider)
+[...] - No active profile set, falling back to 1 default profile: "default"
+[...] - -<1>--> FreeriderRunner constructor, programName=null
+[...] - -<1>--> FreeriderRunner constructor, programNameFinal="Freerider Reservation System"
+[...] - Started Application in 1.77 seconds (process running for 2.291)
+[...] - -<2>--> FreeriderRunner.run(), programName="Freerider Reservation System"
 ```
