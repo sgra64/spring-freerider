@@ -1,0 +1,4 @@
+# ignore git-submodules
+.env/
+.vscode/
+
