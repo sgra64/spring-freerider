@@ -119,7 +119,7 @@ curl -o .gitignore \
 
 # commit files to the 'main' branch
 git add .gitignore .gitmodules
-git commit "add .gitignore, .gitmodules"
+git commit -m "add .gitignore, .gitmodules"
 
 # show commit log of 'main'-branch
 git log --oneline
