@@ -1,255 +1,165 @@
-# 7. *Jdbc-Template*
+# 8. *Data Access Objects (DAO)* and *RowMapper&lt;T&gt;*
 
-Steps:
+Topics:
 
-1. [*JDBC* Basics](#1-jdbc-basics)
+1. [*Data Access Objects (DAO)*](#1-data-access-objects-dao)
 
-1. [*Spring Boot:* *JdbcTemplate*](#2-spring-boot-jdbctemplate)
+1. [*DAO, BO, DTO Pattern*](#2-dao-bo-dto-pattern)
+
+1. [*RowMapper&lt;T&gt;* Interface](#3-rowmappert-interface)
 
 
 
 &nbsp;
 
-## 1. *JDBC* Basics
+## 1. *Data Access Objects (DAO)*
 
-[*Java Database Connectivity (JDBC)*](https://www.tutorialspoint.com/jdbc/index.htm)
-is a Java API to access tabular data stored in Relational Databases.
 
-*JDBC* prepares statements, a so-called
-([*"PreparedStatement"*](https://docs.oracle.com/javase/8/docs/api/java/sql/PreparedStatement.html)),
-which consists of SQL and `?`-markers substituted by parameters such as an
-*id*-value. The resulting SQL Query is then sent to the database (as SQL) and
-a result in form of a
-[*"ResultSet"*](https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSet.html)
-(a table) is returned to iterate over.
+[*`RowMapper<T>`*](https://www.geeksforgeeks.org/java/spring-rowmapper-interface-with-example/)
+is a Java interface to map the *rows of a*
+[*ResultSet*](https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSet.html)
+into
+[*Data Access Objects (DAO)*](https://www.oracle.com/java/technologies/dataaccessobject.html)
+of type `<T>`.
+
+Rows of a *ResultSet* obtained from a database *SELECT*-query are merely text data:
+
+```
+| 1000 | Meyer, Eric         | eme22@gmail.com     | Active        |    <-- row
+```
+
+DAO represent rows from tables as objects as they reside in the database.
+Therefore, DAO are copies of underlying table data and thus should be
+*immutable* (cannot be altered) and not contain logic.
+
+Java `record` should therefore be used for DAO types:
 
 ```java
-try(
-    // create PreparedStatement as SQL with embedded '?' markers to replace
-    PreparedStatement pstmt = dbconnection.prepareStatement(
-        "SELECT * FROM CUSTOMER WHERE id = ?");
+package freerider.dao;
+
+/**
+ * DAO type for table CUSTOMER:
+ * +------+---------------------+---------------------+---------------+
+ * | ID   | NAME                | CONTACT             | STATUS        |
+ * +------+---------------------+---------------------+---------------+
+ * | 1000 | Meyer, Eric         | eme22@gmail.com     | Active        |
+ * | 1001 | Sommer, Tina        | 030 22458 29425     | Active        |
+ * | 1002 | Schulze, Tim        | +49 171 2358124     | InRegistratio |
+ * +------+---------------------+---------------------+---------------+
+ */
+public record Customer(
+    int id,         // PRIMARY KEY (ID)
+    String name,
+    String contact,
+    Status status
 ) {
-    // replace '?' with 100 -> "SELECT * FROM CUSTOMER WHERE id = 1000"
-    pstmt.setInt(1, 1000);
-    // 
-    // send SQL to database and receive ResultSet as answer
-    ResultSet rs = pstmt.executeQuery();
-    // 
-    // iterate over ResultSet (at most one customer with id=1000)
-    while(rs.next()) {
-        var id = String.format("%d", rs.getInt("ID"));
-        var name = rs.getString("NAME");
-        var contact = rs.getString("CONTACT");
-        var status = rs.getString("STATUS");
-        System.out.println(String.format(" - row(%s, %s, %s, %s)", id, name, contact, status));
-    }
-} catch (SQLException e) {
-    System.out.println(e.getMessage());
+    enum Status {Active, InRegistration, Terminated};
 }
 ```
+
+Compare DAO types from package
+[*src/main/java/freerider/dao*](src/main/java/freerider/dao) for:
+
+- record [*Customer.java*](src/main/java/freerider/dao/Customer.java),
+
+- record [*Vehicle.java*](src/main/java/freerider/dao/Vehicle.java),
+
+- record [*Reservation.java*](src/main/java/freerider/dao/Reservation.java).
 
 
 
 &nbsp;
 
-## 2. *Spring Boot:* *JdbcTemplate*
+## 2. *DAO, BO, DTO Pattern*
 
-*Spring Boot* supports *JDBC* by class
-[*JdbcTemplate*](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/jdbc/core/JdbcTemplate.html)
-that is part of the *spring-boot-starter-jdbc* package and must be included
-as a new dependency in *pom.xml* :
+The
+[*DAO Pattern*](https://www.oracle.com/java/technologies/dataaccessobject.html)
+relates different types:
 
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-jdbc</artifactId>
-</dependency>
-```
+- [*Data Access Objects (DAO)*](https://www.oracle.com/java/technologies/dataaccessobject.html)
+    wrapping objects (rows) stored in a table in a database (*"datasource"*).
 
-The new dependency will (transitively) add new *.jar* files to *CLASSPATH* :
+- [*Business Object (BO)*](https://stackoverflow.com/questions/2362380/what-defines-a-business-object)
+    the actual business entity to represent.
 
-```sh
-# re-source the project to rebuild CLASSPATH
-source .env/env.sh
-```
+- [*Data Access Objects (DAO)*](https://www.naukri.com/code360/library/data-transfer-objects-dto-in-spring-boot)
+    to represent the information transferred outside the system (e.g. as *JSON*).
 
-New *.jar* files have been added to *CLASSPATH* :
-```
-project environment has been set with:
- - created file: .classpath
- - CLASSPATH:
-   - target/classes
-   - ...
-   - HikariCP-6.3.0.jar                     <-- new .jar files
-   - spring-boot-starter-jdbc-3.5.0.jar
-   - spring-jdbc-6.2.7.jar
-   - spring-tx-6.2.7.jar
-```
+The pattern originates from the book: *Deepak Alur, John Crupi and Dan Malks:*
+[*"Core J2EE Patterns: Best Practices and Design Strategies"*](http://www.corej2eepatterns.com/Patterns2ndEd/BusinessObject.htm),
+Prentice Hall / Sun Microsystems Press, ISBN:0131422464, 2nd Edition (June, 2003).
 
-Java-code shows the basic use of *JdbcTemplate* in file
-[*FreeriderJdbc.java*](src/main/java/freerider/application/FreeriderJdbc.java) :
+<table>
+<td valign="top">
+<img src="https://www.oracle.com/ocom/groups/public/@otn/documents/digitalasset/146804.jpg" width="300"/>
+</td>
+<td valign="top">
+<img src="https://www.oracle.com/ocom/groups/public/@otn/documents/digitalasset/145996.jpg" width="300"/>
+</td>
+</table>
+
+
+
+<!-- &nbsp; -->
+
+## 3. *RowMapper&lt;T&gt;* Interface
+
+[RowMapper&lt;T&gt;](https://www.tutorialspoint.com/springjdbc/springjdbc_rowmapper.htm)
+is a *@Functional* interface with method: `T mapRow(ResultSet rs, int rowNum)` that
+accepts a *ResultSet* row `rs` and a row number. It creates and returns an object of
+type &lt;T&gt; :
 
 ```java
-package freerider.application;
+@FunctionalInterface
+public interface RowMapper<T> {
 
-import java.sql.SQLException;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
-
-
-@Component
-public class FreeriderJdbc {
-
-    /*
-     * Spring-initialized variable ("autowired")
+    /**
+     * Implementations must implement this method to map each row of data in the
+     * {@code ResultSet}. This method should not call {@code next()} on the
+     * {@code ResultSet}; it is only supposed to map values of the current row.
+     * @param rs the {@code ResultSet} to map (pre-initialized for the current row)
+     * @param rowNum the number of the current row
+     * @return the result object for the current row (may be {@code null})
+     * @throws SQLException if an SQLException is encountered while getting
+     * column values (that is, there's no need to catch SQLException)
      */
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @FunctionalInterface
-    public interface CustomerRowPrinter {
-        void printRow(String id, String name, String contact, String status);
-    }
-
-
-    public void findAll(CustomerRowPrinter rm) {
-        // 
-        // https://mkyong.com/spring-boot/spring-boot-jdbc-examples/
-        // https://www.baeldung.com/spring-jdbc-jdbctemplate
-        // 
-        jdbcTemplate.query("SELECT * FROM CUSTOMER", rs -> {
-            try {
-                rm.printRow(
-                    String.format("%d", rs.getInt("ID")),
-                    rs.getString("NAME"),
-                    rs.getString("CONTACT"),
-                    rs.getString("STATUS")
-                );
-            } catch(SQLException e) { }
-        });
-    }
-
-    public void findById(int id, CustomerRowPrinter rm) {
-        // 
-        // use NamedParameterJdbcTemplate for substitution of named parameters
-        jdbcTemplate.query("SELECT * FROM CUSTOMER WHERE ID = ?",
-            ps -> ps.setInt(1, id),
-            rs -> {
-                rm.printRow(
-                        String.format("%d", rs.getInt("ID")),
-                        rs.getString("NAME"),
-                        rs.getString("CONTACT"),
-                        rs.getString("STATUS")
-                    );
-            });
-        // 
-        // Alternatively, NamedParameterJdbcTemplate can be used for substitution
-        // of named parameters:
-        // 
-        // namedParameterJdbcTemplate.query("SELECT * FROM CUSTOMER WHERE ID = :id",
-        //     new org.springframework.jdbc.core.namedparam.MapSqlParameterSource()
-        //         .addValue("id", id),
-        //     rs -> {
-        //         try {
-        //             rm.printRow(
-        //                 String.format("%d", rs.getInt("ID")),
-        //                 rs.getString("NAME"),
-        //                 rs.getString("CONTACT"),
-        //                 rs.getString("STATUS")
-        //             );
-        //         } catch(SQLException e) { }
-        //     });
-    }
+    @Nullable
+    T mapRow(ResultSet rs, int rowNum) throws SQLException;
 }
 ```
 
-Running the program outputs:
+A *RowMapper&lt;Customer&gt;&lt;* for (DAO-) *record*
+[*Customer.java*](src/main/java/freerider/dao/Customer.java)
+can be defined as:
 
-```
-  .   ____          _            __ _ _
- /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
-( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
- \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
-  '  |____| .__|_| |_|_| |_\__, | / / / /
- =========|_|==============|___/=/_/_/_/
-
- :: Spring Boot ::                (v3.5.0)
-
-[INFO ] [00:09:14:757, freerider.application.Application               ] - Starting Application using Java 21 with PID 17780 (C:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider\target\classes started by svgr2 in c:\Sven1\svgr2\tmp\svgr\workspaces\2-se\spring-freerider)
-[INFO ] [00:09:14:776, freerider.application.Application               ] - No active profile set, falling back to 1 default profile: "default"
-[INFO ] [00:09:16:263, com.zaxxer.hikari.HikariDataSource              ] - HikariPool-1 - Starting...
-[INFO ] [00:09:16:595, com.zaxxer.hikari.pool.HikariPool               ] - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:freerider user=SA
-[INFO ] [00:09:16:616, com.zaxxer.hikari.HikariDataSource              ] - HikariPool-1 - Start completed.
-[INFO ] [00:09:16:951, freerider.application.Application               ] - Started Application in 3.082 seconds (process running for 3.611)
-
-findAll(CustomerRowPrinter rm):
-+------+---------------------+---------------------+---------------+
-| ID   | NAME                | CONTACT             | STATUS        |
-+------+---------------------+---------------------+---------------+
-| 1000 | Meyer, Eric         | eme22@gmail.com     | Active        |
-| 1001 | Sommer, Tina        | 030 22458 29425     | Active        |
-| 1002 | Schulze, Tim        | +49 171 2358124     | InRegistratio |
-+------+---------------------+---------------------+---------------+
-
-findById(int id, CustomerRowPrinter rm):
-+------+---------------------+---------------------+---------------+
-| ID   | NAME                | CONTACT             | STATUS        |
-+------+---------------------+---------------------+---------------+
-| 1000 | Meyer, Eric         | eme22@gmail.com     | Active        |
-+------+---------------------+---------------------+---------------+
-
-findAll(VehicleRowPrinter rm):
-+------+---------------------+---------------------+-----+---------+----------+------------+
-| ID   | MAKE                | MODEL               | SEA | CATEG   | POWER    | STATUS     |
-+------+---------------------+---------------------+-----+---------+----------+------------+
-| 8000 | VW                  | ID.3                |   4 | Sedan   | Electric | Active     |
-| 8001 | VW                  | Golf                |   4 | Sedan   | Gasoline | Active     |
-| 8002 | VW                  | Golf                |   4 | Sedan   | Hybrid   | Active     |
-| 8003 | BMW                 | 320d                |   4 | Sedan   | Diesel   | Active     |
-| 8004 | Mercedes            | EQS                 |   4 | Sedan   | Electric | Active     |
-| 8005 | VW                  | Multivan Life       |   8 | Van     | Gasoline | Active     |
-| 8006 | Tesla               | Model 3             |   4 | Sedan   | Electric | Active     |
-| 8007 | Tesla               | Model S             |   4 | Sedan   | Electric | Serviced   |
-+------+---------------------+---------------------+-----+---------+----------+------------+
-
-void findAll(ReservationRowPrinter rm):
-+-------+------+------+------------------+------------------+-----------------+----------------+------------+
-| ID    |CUS_ID|VEH_ID| BEGIN            | END              | PICKUP          | DROP-OFF       | STATUS     |
-+-------+------+------+------------------+------------------+-----------------+----------------+------------+
-| 145373|  1001|  8002| 2025-07-04 20:00:| 2025-07-04 23:00:| Berlin Wedding  | Hamburg        | Inquired   |
-| 201235|  1000|  8002| 2025-07-20 10:00:| 2025-07-20 20:00:| Berlin Wedding  | Berlin Wedding | Booked     |
-| 351682|  1002|  8001| 2025-06-11 08:00:| 2025-06-11 20:00:| Berlin Wedding  | Hamburg        | Inquired   |
-| 382565|  1000|  8006| 2025-07-18 18:00:| 2025-07-07 18:10:| Berlin Wedding  | Hamburg        | Inquired   |
-| 682351|  1002|  8003| 2025-07-18 09:00:| 2025-07-07 18:00:| Potsdam         | Teltow         | Inquired   |
-+-------+------+------+------------------+------------------+-----------------+----------------+------------+
-
-[INFO ] [00:09:17:084, com.zaxxer.hikari.HikariDataSource              ] - HikariPool-1 - Shutdown initiated...
-[INFO ] [00:09:17:110, com.zaxxer.hikari.HikariDataSource              ] - HikariPool-1 - Shutdown completed.
+```java
+/**
+ * RowMapper<Customer> to map {@link ResultSet} {@code rs} to {@link Customer} dao.
+ */
+private final RowMapper<Customer> customerRowMapper = (rs, rowNum) -> {
+    // 
+    int id = rs.getInt("ID");
+    String name = rs.getString("NAME");
+    String contact = rs.getString("CONTACT");
+    Customer.Status status = Customer.Status.valueOf(rs.getString("STATUS"));
+    // 
+    return new Customer(id, name, contact, status);
+};
 ```
 
+It extracts attributes from the row in the *ResultSet* and creates and returns
+a *Customer* object.
 
-<!--
-An alternative to CommandLineRunner @Component is a @Bean factory method
-at a @Configuration class:
+RowMapper can be used in *jdbcTemplate* queries. Mind the return type of the
+method as immutable collection of *Customer* objects:
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-public class FreeriderDatabaseRunner {
-
-    @Autowired
-    FreeriderDatabaseJdbc freeriderDB;
-
-    @Bean
-    public CommandLineRunner startup() {
-        return args -> {
-            freeriderDB.findAll();
-        };
-    }
+```java
+/**
+ * Return all {@link Customer} objects from associated database table.
+ * @return collection of {@link Customer} objects
+ */
+public Iterable<Customer> findAllCustomers() {
+    // 
+    return jdbcTemplate.query("SELECT * FROM CUSTOMER", customerRowMapper);
 }
--->
+```
