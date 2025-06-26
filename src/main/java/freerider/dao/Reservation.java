@@ -24,5 +24,5 @@ public record Reservation(
     String dropoff,
     Status status
 ) {
-    enum Status {Inquired, InquiryConfirmed, Booked, Cancelled};
+    public enum Status {Inquired, InquiryConfirmed, Booked, Cancelled};
 }

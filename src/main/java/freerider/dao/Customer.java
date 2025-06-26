@@ -16,5 +16,5 @@ public record Customer(
     String contact,
     Status status
 ) {
-    enum Status {Active, InRegistration, Terminated};
+    public enum Status {Active, InRegistration, Terminated};
 }

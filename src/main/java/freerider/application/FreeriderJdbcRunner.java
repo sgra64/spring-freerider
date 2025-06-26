@@ -1,15 +1,21 @@
 package freerider.application;
 
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.stream.StreamSupport;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import freerider.dao.Customer.Status;
 
 
 @Component
 public class FreeriderJdbcRunner implements CommandLineRunner {
 
     @Autowired
-    private FreeriderJdbc freeriderDB;
+    private FreeriderJdbcRowMapper freeriderDB;
 
 
     @Override
@@ -27,23 +33,21 @@ public class FreeriderJdbcRunner implements CommandLineRunner {
             .row("ID", "NAME", "CONTACT", "STATUS")
             .line();
         // 
-        freeriderDB.findAll( (id, name, contact, status) -> tf1.row(id, name, contact, status));
+        var customers = freeriderDB.findAllCustomers();
+        // 
+        StreamSupport.stream(customers.spliterator(), false)
+            .forEach(customer -> {
+                int id = customer.id();
+                String name = customer.name();
+                String contact = customer.contact();
+                Status status = customer.status();
+                // 
+                // write Customer object into table row:
+                tf1.row(String.format("%d", id), name, contact, status.toString());
+            });
+        // 
         tf1.line();
-        System.out.println("findAll(CustomerRowPrinter rm):\n" + tf1.get().toString());
-        // 
-        // +------+---------------------+---------------------+---------------+
-        // | ID   | NAME                | CONTACT             | STATUS        |
-        // +------+---------------------+---------------------+---------------+
-        // | 1000 | Meyer, Eric         | eme22@gmail.com     | Active        |
-        // +------+---------------------+---------------------+---------------+
-        final TableFormatter tf2 = new TableFormatter("| %-5s", "| %-20s", "| %-20s", "| %-13s |")
-            .line()
-            .row("ID", "NAME", "CONTACT", "STATUS")
-            .line();
-        // 
-        freeriderDB.findById(1000, (id, name, contact, status) -> tf2.row(id, name, contact, status));
-        tf2.line();
-        System.out.println("findById(int id, CustomerRowPrinter rm):\n" + tf2.get().toString());
+        System.out.println("findAllCustomers():\n" + tf1.get().toString());
 
         // +------+---------------------+---------------------+-----+---------+----------+------------+
         // | ID   | MAKE                | MODEL               | SEA | CATEG   | POWER    | STATUS     |
@@ -57,17 +61,25 @@ public class FreeriderJdbcRunner implements CommandLineRunner {
         // | 8006 | Tesla               | Model 3             |   4 | Sedan   | Electric | Active     |
         // | 8007 | Tesla               | Model S             |   4 | Sedan   | Electric | Serviced   |
         // +------+---------------------+---------------------+-----+---------+----------+------------+
-        final TableFormatter tf3 = new TableFormatter("| %-5s", "| %-20s", "| %-20s", "| %3s ", "| %-8s", "| %-9s", "| %-10s |")
+        final TableFormatter tf2 = new TableFormatter("| %-5s", "| %-20s", "| %-20s", "| %3s ", "| %-8s", "| %-9s", "| %-10s |")
             .line()
             .row("ID", "MAKE", "MODEL", "SEA", "CATEG", "POWER", "STATUS")
             .line();
         // 
-        freeriderDB.findAll( (id, make, model, seats, category, power, status) ->
-            // 
-            tf3.row(id, make, model, seats, category, power, status));
+        var vehicles = freeriderDB.findAllVehicles();
         // 
-        tf3.line();
-        System.out.println("findAll(VehicleRowPrinter rm):\n" + tf3.get().toString());
+        StreamSupport.stream(vehicles.spliterator(), false)
+            .forEach(vehicle -> 
+                // write Vehicle object into table row:
+                tf2.row(String.format("%d", vehicle.id()), vehicle.make(), vehicle.model(),
+                        String.format("%d", vehicle.seats()),
+                        vehicle.category().toString(),
+                        vehicle.power().toString(),
+                        vehicle.status().toString())
+            );
+        // 
+        tf2.line();
+        System.out.println("findAllVehicles():\n" + tf2.get().toString());
 
         // +-------+------+------+------------------+------------------+-----------------+----------------+------------+
         // | ID    |CUS_ID|VEH_ID| BEGIN            | END              | PICKUP          | DROP-OFF       | STATUS     |
@@ -78,16 +90,29 @@ public class FreeriderJdbcRunner implements CommandLineRunner {
         // | 382565|  1000|  8006| 2025-07-18 18:00:| 2025-07-07 18:10:| Berlin Wedding  | Hamburg        | Inquired   |
         // | 682351|  1002|  8003| 2025-07-18 09:00:| 2025-07-07 18:00:| Potsdam         | Teltow         | Inquired   |
         // +-------+------+------+------------------+------------------+-----------------+----------------+------------+
-        final TableFormatter tf4 = new TableFormatter("| %-6s", "|%6s", "|%6s", "| %-17s", "| %-17s", "| %-15s ", "| %-15s", "| %-10s |")
+        final TableFormatter tf3 = new TableFormatter("| %-6s", "|%6s", "|%6s", "| %-17s", "| %-17s", "| %-15s ", "| %-15s", "| %-10s |")
             .line()
             .row("ID", "CUS_ID", "VEH_ID", "BEGIN", "END", "PICKUP", "DROP-OFF", "STATUS")
             .line();
         // 
-        freeriderDB.findAll( (id, cust_id, veh_id, begin, end, pickup, drop, status) ->
-            // 
-            tf4.row(id, cust_id, veh_id, begin, end, pickup, drop, status));
+        var reservations = freeriderDB.findAllReservations();
         // 
-        tf4.line();
-        System.out.println("void findAll(ReservationRowPrinter rm):\n" + tf4.get().toString());
+        final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.GERMANY);
+        // 
+        StreamSupport.stream(reservations.spliterator(), false)
+            .forEach(reservation -> 
+                // write Reservation object into table row:
+                tf3.row(String.format("%d", reservation.id()),
+                        String.format("%d", reservation.customer_id()),
+                        String.format("%d", reservation.vehicle_id()),
+                        dtf.format(reservation.begin()),
+                        dtf.format(reservation.end()),
+                        reservation.pickup(),
+                        reservation.dropoff(),
+                        reservation.status().toString())
+            );
+        // 
+        tf3.line();
+        System.out.println("findAllReservations():\n" + tf3.get().toString());
     }
 }

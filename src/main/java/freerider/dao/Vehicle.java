@@ -24,7 +24,7 @@ public record Vehicle(
     Power power,
     Status status
 ) {
-    enum Category {Sedan, SUV, Convertible, Van, Bike};
-    enum Power {Gasoline, Diesel, Electric, Hybrid, Hydrogen};
-    enum Status {Active, Serviced, Terminated};
+    public enum Category {Sedan, SUV, Convertible, Van, Bike};
+    public enum Power {Gasoline, Diesel, Electric, Hybrid, Hydrogen};
+    public enum Status {Active, Serviced, Terminated};
 }
